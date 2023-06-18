@@ -1,0 +1,726 @@
+---
+title: "Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: cerulean
+    orientation: columns
+    vertical_layout: fill
+    source_code: embed
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(dplyr)
+library(readr)
+library(haven)
+library(leaflet) 
+library(sf)
+library(viridis)
+library(ggplot2)
+library(plotly)
+library(DT)
+library(gganimate)
+library(ggthemes)
+library(forcats)
+library(treemapify)
+library(waffle)
+library(ggalt)
+library(tidyquant)
+```
+
+<style>
+.tipo1{
+  fill: #AC75D6; 
+  stroke: #FFFFFF; 
+  stroke-width: 10;
+}
+
+.tipo2:hover{
+  transition: 1s fill; 
+  fill: #000000;
+}
+
+.tipo3:hover{
+  fill: #EAA81C; 
+  transition: 1s fill; 
+}
+</style>
+
+
+Deuda Total de los Hogares 
+===============================================
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r Bases}
+#Base de datos: EFH 2021
+EFH_2021= read_dta("datos/Base imputada EFH 2021.dta")
+#Base con las variables que se pueden ocupar:
+EFH <- subset(EFH_2021, select = c(factor, genero_ent, edad_ent, macrozona,
+             educ_ent, neduc_ent,
+             ylabh, ypenh, ysubh, ytotef,
+             t_dhip, t_tcbco, t_lcbco, t_pbco,
+             t_tcc, t_pcc, t_dauto, t_deduc,
+             t_dnhip, t_dtoth,
+             d_tothip, d_tcbco, d_lcbco, d_pbco, d_tcc,d_pcc,
+             d_auto, d_educ, d_toth, 
+             div_vp, cf_dtbco,cf_dlbco ,cf_dpbco, cf_dtcc, cf_dauto, cf_deduc,
+             cf_dnhip, cf_dtoth,
+             rci_dhip,rci_dnhip,rci_dt))
+
+#Base para tenencias de deuda: 
+EFH_2 = subset(EFH_2021, select = c(factor, genero_ent, edad_ent, macrozona,
+             educ_ent, neduc_ent,
+             t_dhip, t_tcbco, t_lcbco, t_pbco,
+             t_tcc, t_pcc, t_dauto, t_deduc,
+             t_dnhip, t_dtoth))
+
+#Renombrar variables: 
+EFH_2 = EFH_2%>%rename(Gender = genero_ent,
+                       Edad = edad_ent, 
+                       Zona = macrozona, 
+                       Años_educacion = educ_ent,
+                       Nivel_educacion = neduc_ent,
+                       Tenencia_deuda_hipotecaria = t_dhip,
+                       Tenencia_deuda_tc_bancarias = t_tcbco, 
+                       Tenencia_deuda_linea_credito_bancario =t_lcbco,
+                       Tenencia_deuda_credito_consumo_bancario = t_pbco,
+                       Tenencia_deuda_tc_casas_comerciales = t_tcc,
+                       Tenencia_deuda_credito_consumo_casas_comerciales = t_pcc,
+                       Tenencia_deuda_automotriz = t_dauto,
+                       Tenencia_deuda_creditos_educacionales = t_deduc,
+                       Tenencia_deuda_total_no_hipotecaria = t_dnhip,
+                       Tenencia_deuda_total = t_dtoth)
+EFH_2$Gender <- factor(
+  EFH_2$Gender, levels = c(0, 1),
+  labels = c("Mujer", 
+             "Hombre"))
+
+#Base Montos de deudas: 
+EFH_3 = subset(EFH_2021, select = c(factor, genero_ent, edad_ent, macrozona,
+             educ_ent, neduc_ent,
+             d_tothip, d_tcbco, d_lcbco, d_pbco, d_tcc,d_pcc,
+             d_auto, d_educ, d_toth))
+
+#Renombrar variables: 
+EFH_3 = EFH_3%>%rename(Gender = genero_ent,
+                       Edad = edad_ent, 
+                       Zona = macrozona, 
+                       Años_educacion = educ_ent,
+                       Nivel_educacion = neduc_ent,
+                       Monto_deuda_hipotecaria = d_tothip,
+                       Monto_deuda_tc_bancarias = d_tcbco,
+                       Monto_deuda_linea_credito_bancaria = d_lcbco,
+                       Monto_deuda_credito_consumo_bancario = d_pbco,
+                       Monto_deuda_tc_casas_comerciales = d_tcc,
+                       Monto_deuda_credito_casas_comerciales = d_pcc,
+                       Monto_deuda_automotriz = d_auto,
+                       Monto_deuda_educacional = d_educ,
+                       Monto_deuda_total_hogar=d_toth)
+
+#Base carga financiera: 
+EFH_4 = subset(EFH_2021, select = c(factor, genero_ent, edad_ent, macrozona,
+             educ_ent, neduc_ent, 
+             div_vp, cf_dtbco,cf_dlbco ,cf_dpbco, cf_dtcc, cf_dauto, cf_deduc,
+             cf_dnhip, cf_dtoth))
+
+EFH_4 = EFH_4%>%rename(Gender = genero_ent,
+                       Edad = edad_ent, 
+                       Zona = macrozona, 
+                       Años_educacion = educ_ent,
+                       Nivel_educacion = neduc_ent,
+                       Carga_financiera_deuda_hipotecaria = div_vp,
+                       Carga_financiera_deuda_tc_bancarias =cf_dtbco,
+                       Carga_financiera_deuda_linea_credito_bancaria = cf_dlbco,
+                       Carga_financiera_deuda_credito_consumo_bancario = cf_dpbco,
+                       Carga_financiera_deuda_tc_casas_comerciales = cf_dtcc,
+                       Carga_financiera_deuda_automotriz = cf_dauto,
+                       Carga_financiera_deuda_educacion = cf_deduc,
+                       Carga_financiera_deuda_total_no_hip = cf_dnhip,
+                       Carga_financiera_deuda_total = cf_dtoth)
+
+#Base ratios de endeudamiento:
+EFH_5 <- subset(EFH_2021, select = c(factor, genero_ent, edad_ent, macrozona,
+             educ_ent, neduc_ent,
+             rci_dhip,rci_dnhip,rci_dt))
+EFH_5 = EFH_5%>%rename(Gender = genero_ent,
+                       Edad = edad_ent, 
+                       Zona = macrozona, 
+                       Años_educacion = educ_ent,
+                       Nivel_educacion = neduc_ent,
+                       Ratio_Deuda_Hipotecaria = rci_dhip,
+                       Ratio_Deuda_no_Hipotecaria = rci_dnhip,
+                       Ratio_Deuda_Total = rci_dt)
+EFH_5$Nivel_educacion <- factor(
+  EFH_5$Nivel_educacion, levels = c(0, 1, 2, 3, 4, 5, 6),
+  labels = c("Sin educación", 
+             "Educación diferencial", 
+             "Educación básica",
+             "Educación media", 
+             "CFT o IP", 
+             "Universitaria", 
+             "Postgrado"))
+```
+
+```{r}
+# Gráfico tenencia deuda total sg sexo
+
+# Filtrar los datos para aquellos con Tenencia_deuda_total igual a 1
+datos_filtrados <- filter(EFH_2, Tenencia_deuda_total == 1)
+
+# Contar la cantidad de hombres y mujeres
+conteo <- datos_filtrados %>% count(Gender)
+```
+
+```{r}
+plot_ly(data = conteo, labels = ~Gender, values = ~n, type = "pie") %>%
+  layout(title = "Tenencia de Deuda Total por Género",
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         showlegend = TRUE) %>%
+   add_trace(marker = list(colors = c("#7a0571", "#057a49")))
+```
+
+### Chart B
+
+```{r}
+# Gráfico barras ratios de endeudamiento deuda total sg nivel de educación:  
+EFH_5 %>%
+  filter(!is.na(Nivel_educacion) & !is.na(Ratio_Deuda_Total)) %>%
+  plot_ly(x = ~Nivel_educacion, y = ~Ratio_Deuda_Total, type = "bar",
+          color = ~Nivel_educacion, colors = c("#F7DC6F", "#F5B041", "#E74C3C", "#5DADE2", "#2ECC71")) %>%
+  layout(title = "Ratios de Endeudamiento Total según niveles educativos",
+         xaxis = list(title = "Niveles de educación"),
+         yaxis = list(title = "Ratio deuda total", range = c(0, 1.5), tick0 = 0.2, dtick = 0.2),
+         legend = list(
+           orientation = "h",
+           xanchor = "center",
+           x = 0.5,
+           y = -0.2
+         ),
+         bargap = 0.2) %>%
+  config(displayModeBar = FALSE)
+
+```
+
+
+Column 
+----------------------------------------------------------------------
+
+### Chart D
+
+```{r}
+# Banner n° tenencia deuda cualquier tipo (deuda total): 
+
+# Contar el número total de personas con tenencia de deuda total (valor 1)
+num_deuda_total <- sum(EFH_2$Tenencia_deuda_total == 1, na.rm = TRUE)
+```
+
+```{r}
+valueBox(prettyNum(num_deuda_total),
+         caption = "Personas con tenencia de deuda de cualquier tipo (hipotecaria o no hipotecaria", 
+         icon ="fa-solid fa-people-group")
+```
+
+
+### Chart E
+
+```{r}
+# Calcular el promedio del monto de la deuda total del hogar
+monto_promedio_total <- mean(EFH_3$Monto_deuda_total_hogar, na.rm = TRUE)
+monto_promedio_total <- paste0("$", format(monto_promedio_total, big.mark = ".", decimal.mark = ","))
+```
+
+```{r}
+valueBox(prettyNum(monto_promedio_total),
+         caption = "Monto Promedio deuda total en hogares", 
+         icon ="fa-solid fa-sack-dollar fa-shake")
+```
+
+
+
+Deuda Hipotecaria
+===============================================
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Chart A
+
+
+```{r}
+# Gráfico torta tenencia deuda hipotecaria según sexo: 
+
+# Filtrar los datos para aquellos con Tenencia_deuda_hipotecaria igual a 1
+datos_filtrados_hip <- filter(EFH_2, Tenencia_deuda_hipotecaria == 1)
+
+# Contar la cantidad de hombres y mujeres
+conteo_hip <- datos_filtrados_hip %>% count(Gender)
+```
+
+```{r}
+plot_ly(data = conteo_hip, labels = ~Gender, values = ~n, type = "pie") %>%
+  layout(title = "Tenencia de Deuda Hipotecaria por Género",
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         showlegend = TRUE) %>%
+   add_trace(marker = list(colors = c("#7a0571", "#057a49")))
+
+```
+
+### Chart B
+
+```{r}
+# Gráfico de barras ratio de endeudamiento con deuda hipotecaria sg nivel educacion
+
+EFH_5 %>%
+  filter(!is.na(Nivel_educacion) & !is.na(Ratio_Deuda_Hipotecaria)) %>%
+  plot_ly(x = ~Nivel_educacion, y = ~Ratio_Deuda_Total, type = "bar",
+          color = ~Nivel_educacion, colors = c("#F7DC6F", "#F5B041", "#E74C3C", "#5DADE2", "#2ECC71")) %>%
+  layout(title = "Ratios de Endeudamiento Total según niveles educativos",
+         xaxis = list(title = "Niveles de educación"),
+         yaxis = list(title = "Ratio deuda total", range = c(0, 1.5), tick0 = 0.2, dtick = 0.2),
+         legend = list(
+           orientation = "h",
+           xanchor = "center",
+           x = 0.5,
+           y = -0.2
+         ),
+         bargap = 0.2) %>%
+  config(displayModeBar = FALSE)
+```
+
+
+Column 
+----------------------------------------------------------------------
+
+### Chart D
+
+```{r}
+# Banner n° total de personas con tenencia deuda hipotecaria:
+num_deuda_hipotecaria <- sum(EFH_2$Tenencia_deuda_hipotecaria == 1, na.rm = TRUE)
+```
+
+```{r}
+valueBox(prettyNum(num_deuda_hipotecaria),
+         caption = "Personas con tenencia de deuda hipotecaria", 
+         icon ="fa-solid fa-house-chimney")
+```
+
+
+
+### Chart E
+
+```{r}
+# Banner n° personas con educación básica(2) con tenencia de deuda hipotecaría. 
+hip_basic <- sum(EFH_2$Tenencia_deuda_hipotecaria == 1 &
+                      EFH_2$Nivel_educacion == 2, na.rm = TRUE)
+
+```
+
+
+```{r}
+valueBox(prettyNum(hip_basic),
+         caption = "Personas con educación básica con tenencia deuda hipotecaria", 
+         icon ="fa-solid fa-house-chimney")
+```
+
+
+
+
+### Chart F
+```{r}
+# Banner n° personas con universitaria(5) con tenencia deuda hipotecaria: 
+hip_uni <- sum(EFH_2$Tenencia_deuda_hipotecaria == 1 &
+                      EFH_2$Nivel_educacion == 5, na.rm = TRUE)
+```
+
+```{r}
+valueBox(prettyNum(hip_uni),
+         caption = "Personas con educación universitaria con tenencia deuda hipotecaria", 
+         icon ="fa-solid fa-house-chimney")
+```
+
+
+### Chart G
+```{r}
+# Banner n° monto promedio deuda hipotecaria.
+monto_promedio_hip <- mean(EFH_3$Monto_deuda_hipotecaria, na.rm = TRUE)
+monto_promedio_hip<- paste0("$", format(monto_promedio_hip, big.mark = ".", decimal.mark = ","))
+```
+
+```{r}
+valueBox(prettyNum(monto_promedio_hip),
+         caption = "Monto Promedio deuda hipotecaria en hogares", 
+         icon ="fa-solid fa-sack-dollar fa-shake")
+```
+
+
+Deuda Tarjetas de Crédito Casas Comerciales
+===============================================
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+# Gráfico torta tenencia deuda tc casas comerciales sg sexo 
+# Filtrar los datos para aquellos con Tenencia_deuda_tc_casas_comerciales igual a 1
+datos_filtrados_tc <- filter(EFH_2, Tenencia_deuda_tc_casas_comerciales == 1)
+
+# Contar la cantidad de hombres y mujeres
+conteo_tc<- datos_filtrados_tc %>% count(Gender)
+```
+
+```{r}
+plot_ly(data = conteo_tc, labels = ~Gender, values = ~n, type = "pie") %>%
+  layout(title = "Tenencia de Deuda Tarjetas de Crédito de Casas comerciales según Género",
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         showlegend = TRUE) %>%
+   add_trace(marker = list(colors = c("#7a0571", "#057a49")))
+```
+
+Column 
+----------------------------------------------------------------------
+
+### Chart D
+
+```{r}
+# Banner n° total de personas con deuda tc casas comerciales: 
+num_deuda_tc <- sum(EFH_2$Tenencia_deuda_tc_casas_comerciales == 1, na.rm = TRUE)
+```
+
+```{r}
+valueBox(prettyNum(num_deuda_tc),
+         caption = "Personas con tenencia de deuda en tarjetas de crédito de casas comerciales", 
+         icon ="fa-regular fa-credit-card")
+
+```
+
+### Chart E
+
+```{r}
+# Banner n° personas con educación básica con tenencia de deuda tc casas comerciales. 
+tc_basic <- sum(EFH_2$Tenencia_deuda_tc_casas_comerciales == 1 &
+                      EFH_2$Nivel_educacion == 2, na.rm = TRUE)
+```
+
+```{r}
+valueBox(prettyNum(tc_basic),
+         caption = "Personas con educación básica con tenencia deuda en tarjetas de crédito de casas comerciales", 
+         icon ="fa-regular fa-credit-card")
+```
+
+
+
+### Chart F
+
+```{r}
+# Banner n° personas con universitaria con tenencia deuda tc casas comerciales
+tc_uni <- sum(EFH_2$Tenencia_deuda_tc_casas_comerciales == 1 &
+                      EFH_2$Nivel_educacion == 5, na.rm = TRUE)
+```
+
+```{r}
+valueBox(prettyNum(tc_uni),
+         caption = "Personas con educación universitarias con tenencia deuda en tarjetas de crédito de casas comerciales", 
+         icon ="fa-regular fa-credit-card")
+```
+
+### Chart G
+
+```{r}
+# Banner n° monto promedio deuda tc casas comerciales
+# Calcular el promedio del monto de la deuda tc casas comerciales
+
+monto_promedio_tc <- mean(EFH_3$Monto_deuda_tc_casas_comerciales, na.rm = TRUE)
+monto_promedio_tc <- paste0("$", format(monto_promedio_tc, big.mark = ".", decimal.mark = ","))
+```
+
+```{r}
+valueBox(prettyNum(monto_promedio_tc),
+         caption = "Monto Promedio deuda de tarjetas de crédito de casas comerciales", 
+         icon = "fa-solid fa-sack-dollar fa-shake")
+```
+
+
+Deuda Créditos de Consumo Casas Comerciales
+===============================================
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+# Gráfico torta tenencia deuda crédito casas comerciales sg sexo 
+# Filtrar los datos para aquellos con Tenencia_deuda_tc_casas_comerciales igual a 1
+datos_filtrados_cred <- filter(EFH_2, Tenencia_deuda_credito_consumo_casas_comerciales == 1)
+
+# Contar la cantidad de hombres y mujeres
+conteo_cred<- datos_filtrados_cred %>% count(Gender)
+```
+
+```{r}
+ plot_ly(data = conteo_cred, labels = ~Gender, values = ~n, type = "pie") %>%
+  layout(title = "Tenencia de Deuda Créditos de Consumo de Casas comerciales según Género",
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         showlegend = TRUE) %>%
+   add_trace(marker = list(colors = c("#7a0571", "#057a49")))
+```
+
+
+Column 
+----------------------------------------------------------------------
+
+### Chart D
+
+```{r}
+# Banner n° total de personas con deuda crédito casas comerciales: 
+num_deuda_cred <- sum(EFH_2$Tenencia_deuda_credito_consumo_casas_comerciales == 1, na.rm = TRUE)
+```
+
+```{r}
+valueBox(prettyNum(num_deuda_tc),
+         caption = "Personas con tenencia de deuda de crédito de consumo en casas comerciales", 
+         icon ="fa-solid fa-file-invoice-dollar")
+```
+
+
+### Chart E
+
+```{r}
+# Banner personas con educacion básica y tenencia deuda crédito casas comerciales
+cred_basic <- sum(EFH_2$Tenencia_deuda_credito_consumo_casas_comerciales == 1 &
+                      EFH_2$Nivel_educacion == 2, na.rm = TRUE)
+
+```
+
+```{r}
+valueBox(prettyNum(cred_basic),
+         caption = "Personas con educación básica con tenencia de deuda de crédito de consumo en casas comerciales", 
+         icon ="fa-solid fa-file-invoice-dollar")
+
+```
+
+
+### Chart F
+
+```{r}
+# Banner personas con educación universitaria y tenencia deuda crédito casas comerciales
+cred_uni <- sum(EFH_2$Tenencia_deuda_credito_consumo_casas_comerciales == 1 &
+                      EFH_2$Nivel_educacion == 5, na.rm = TRUE)
+```
+
+
+```{r}
+valueBox(prettyNum(cred_uni),
+         caption = "Personas con educación universitaria con tenencia de deuda de crédito de consumo en casas comerciales", 
+         icon ="fa-solid fa-file-invoice-dollar")
+```
+
+### Chart G
+
+```{r}
+# Banner n° monto promedio deuda crédito casas comerciales: 
+# Calcular el promedio del monto de la deuda crédito casas comerciales
+
+monto_promedio_cred <- mean(EFH_3$Monto_deuda_credito_casas_comerciales, na.rm = TRUE)
+monto_promedio_cred <- paste0("$", format(monto_promedio_cred, big.mark = ".", decimal.mark = ","))
+```
+
+```{r}
+valueBox(prettyNum(monto_promedio_cred),
+         caption = "Monto Promedio deuda de créditos de consumo en casas comerciales", 
+         icon = "fa-solid fa-sack-dollar fa-shake")
+```
+
+
+
+Deuda Automotriz
+===============================================
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+# Gráfico torta tenencia deuda automotriz sg sexo 
+
+# Filtrar los datos para aquellos con Tenencia_deuda_tc_casas_comerciales igual a 1
+datos_filtrados_auto <- filter(EFH_2, Tenencia_deuda_automotriz == 1)
+
+# Contar la cantidad de hombres y mujeres
+conteo_auto<- datos_filtrados_auto %>% count(Gender)
+```
+
+```{r}
+plot_ly(data = conteo_auto, labels = ~Gender, values = ~n, type = "pie") %>%
+  layout(title = "Tenencia de Deuda Automotriz según Género",
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         showlegend = TRUE) %>%
+   add_trace(marker = list(colors = c("#7a0571", "#057a49")))
+```
+
+
+Column 
+----------------------------------------------------------------------
+
+### Chart D
+
+```{r}
+# Banner n° total de personas con deuda automotriz
+num_deuda_auto <- sum(EFH_2$Tenencia_deuda_automotriz == 1, na.rm = TRUE)
+
+```
+
+```{r}
+valueBox(prettyNum(num_deuda_auto),
+         caption = "Personas con tenencia de deuda automotriz", 
+         icon = "fa-solid fa-car")
+```
+
+### Chart E
+
+```{r}
+# Banner personas con educación básica y tenencia deuda automotriz
+auto_basic <- sum(EFH_2$Tenencia_deuda_automotriz == 1 &
+                      EFH_2$Nivel_educacion == 2, na.rm = TRUE)
+```
+
+```{r}
+valueBox(prettyNum(auto_basic),
+         caption = "Personas con educación básica con tenencia de deuda automotriz", 
+         icon ="fa-solid fa-car")
+```
+
+
+
+### Chart F
+
+```{r}
+# Banner personas con educación universitaria y tenencia deuda automotriz
+auto_uni <- sum(EFH_2$Tenencia_deuda_automotriz == 1 &
+                      EFH_2$Nivel_educacion == 5, na.rm = TRUE)
+```
+
+```{r}
+valueBox(prettyNum(auto_uni),
+         caption = "Personas con educación universitaria con tenencia de deuda automotriz", 
+         icon ="fa-solid fa-car")
+```
+
+### Chart G
+
+```{r}
+# Banner n° monto promedio deuda automotriz
+# Calcular el promedio del monto de la deuda crédito casas comerciales
+
+monto_promedio_auto <- mean(EFH_3$Monto_deuda_automotriz, na.rm = TRUE)
+monto_promedio_auto <- paste0("$", format(monto_promedio_auto, big.mark = ".", decimal.mark = ","))
+```
+
+```{r}
+valueBox(prettyNum(monto_promedio_auto),
+         caption = "Monto Promedio deuda automotriz", 
+         icon = "fa-solid fa-sack-dollar fa-shake")
+```
+
+
+Deuda Educacional
+===============================================
+
+Column {.tabset}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+# Gráfico torta tenencia deuda educacional
+# Filtrar los datos para aquellos con Tenencia_deuda_creditos_educacionales igual a 1
+datos_filtrados_educ <- filter(EFH_2, Tenencia_deuda_creditos_educacionales == 1)
+
+# Contar la cantidad de hombres y mujeres
+conteo_educ<- datos_filtrados_educ %>% count(Gender)
+```
+
+```{r}
+plot_ly(data = conteo_educ, labels = ~Gender, values = ~n, type = "pie") %>%
+  layout(title = "Tenencia de Deuda Educacional según Género",
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         showlegend = TRUE) %>%
+   add_trace(marker = list(colors = c("#7a0571", "#057a49")))
+```
+
+
+Column 
+----------------------------------------------------------------------
+
+### Chart D
+
+```{r}
+# Banner n° total de personas con deuda educacional
+num_deuda_educ <- sum(EFH_2$Tenencia_deuda_creditos_educacionales == 1, na.rm = TRUE)
+```
+
+```{r}
+valueBox(prettyNum(num_deuda_educ),
+         caption = "Personas con tenencia de créditos educacionales", 
+         icon = "fa-solid fa-user-graduate")
+```
+
+### Chart E
+
+```{r}
+# Banner personas con educación básica y tenencia deuda educacional
+educ_basic <- sum(EFH_2$Tenencia_deuda_creditos_educacionales == 1 &
+                      EFH_2$Nivel_educacion == 2, na.rm = TRUE)
+```
+
+```{r}
+valueBox(prettyNum(educ_basic),
+         caption = "Personas con educación básica con tenencia de deuda educacional", 
+         icon ="fa-solid fa-user-graduate")
+```
+
+
+
+### Chart F
+
+```{r}
+# Banner personas con educación universitaria y tenencia deuda educacional
+educ_uni <- sum(EFH_2$Tenencia_deuda_creditos_educacionales == 1 &
+                      EFH_2$Nivel_educacion == 5, na.rm = TRUE)
+```
+
+```{r}
+valueBox(prettyNum(educ_uni),
+         caption = "Personas con educación universitaria con tenencia de deuda educacional", 
+         icon ="fa-solid fa-user-graduate")
+```
+
+
+
+### Chart G
+
+```{r}
+# Banner n° monto promedio deuda educacional
+monto_promedio_educ <- mean(EFH_3$Monto_deuda_educacional, na.rm = TRUE)
+monto_promedio_educ <- paste0("$", format(monto_promedio_educ, big.mark = ".", decimal.mark = ","))
+
+```
+
+```{r}
+valueBox(prettyNum(monto_promedio_educ),
+         caption = "Monto Promedio deuda educacional", 
+         icon = "fa-solid fa-sack-dollar fa-shake")
+```
